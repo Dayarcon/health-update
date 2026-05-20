@@ -15,11 +15,14 @@ datasource db {
 // ============================================================================
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String?
+  passwordHash  String?
+  googleId      String?  @unique
+  refreshToken  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // Relations
   patients      Patient[]
@@ -47,7 +50,6 @@ model Patient {
   reports Report[]
 
   @@index([userId])
-  @@fulltext([name])
 }
 
 // ============================================================================
@@ -94,7 +96,6 @@ model Medicine {
   report Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
   @@index([reportId])
-  @@fulltext([name])
 }
 
 // ============================================================================
@@ -112,7 +113,6 @@ model Diagnosis {
   report Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
   @@index([reportId])
-  @@fulltext([condition])
 }
 
 // ============================================================================
