@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database (for local development)
+  postgres:
+    image: postgres:16-alpine
+    container_name: medguardian-db
+    environment:
+      POSTGRES_DB: medguardian
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis (for job queue)
+  redis:
+    image: redis:7-alpine
+    container_name: medguardian-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API (optional - comment out if running locally with `npm run dev`)
+  # backend:
+  #   build:
+  #     context: ./backend
+  #     dockerfile: Dockerfile
+  #   container_name: medguardian-api
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     DATABASE_URL: postgresql://postgres:postgres@postgres:5432/medguardian
+  #     REDIS_URL: redis://redis:6379
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   volumes:
+  #     - ./backend/src:/app/src
+
+volumes:
+  postgres_data:
+
+networks:
+  default:
+    name: medguardian-network

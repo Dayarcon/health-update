@@ -1,0 +1,158 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// USERS & AUTH
+// ============================================================================
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  patients      Patient[]
+  notifications Notification[]
+
+  @@index([email])
+}
+
+// ============================================================================
+// PATIENTS (people whose medical info is being tracked)
+// ============================================================================
+
+model Patient {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  age       Int?
+  gender    String?  // "male" | "female" | "other"
+  relation  String?  // "self" | "parent" | "spouse" | "child" | "other"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reports Report[]
+
+  @@index([userId])
+  @@fulltext([name])
+}
+
+// ============================================================================
+// MEDICAL REPORTS (uploaded documents)
+// ============================================================================
+
+model Report {
+  id           String   @id @default(cuid())
+  patientId    String
+  reportType   String   // "prescription" | "eeg" | "lab" | "bill" | "discharge"
+  imageUrl     String   // URL in Supabase storage
+  fileName     String
+  rawOcrText   String?  // Raw text from Gemini Vision API
+  aiSummary    Json?    // Parsed JSON from Gemini LLM
+  riskLevel    String?  // "low" | "medium" | "high"
+  processingStatus String @default("pending") // "pending" | "processing" | "completed" | "failed"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  patient   Patient     @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  medicines Medicine[]
+  diagnoses Diagnosis[]
+
+  @@index([patientId])
+  @@index([createdAt])
+  @@index([processingStatus])
+}
+
+// ============================================================================
+// MEDICINES (extracted from prescriptions)
+// ============================================================================
+
+model Medicine {
+  id        String   @id @default(cuid())
+  reportId  String
+  name      String
+  dosage    String?  // "5mg" | "500mg" etc
+  frequency String?  // "once daily" | "twice daily" etc
+  duration  String?  // "7 days" | "30 days" etc
+  createdAt DateTime @default(now())
+
+  // Relations
+  report Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId])
+  @@fulltext([name])
+}
+
+// ============================================================================
+// DIAGNOSES (extracted from reports)
+// ============================================================================
+
+model Diagnosis {
+  id        String   @id @default(cuid())
+  reportId  String
+  condition String   // "Anxiety" | "Epilepsy" etc
+  severity  String?  // "mild" | "moderate" | "severe"
+  createdAt DateTime @default(now())
+
+  // Relations
+  report Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId])
+  @@fulltext([condition])
+}
+
+// ============================================================================
+// NOTIFICATIONS (alerts sent to caregivers)
+// ============================================================================
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      String   // "push" | "email" | "telegram" | "sms"
+  isRead    Boolean  @default(false)
+  metadata  Json?    // { reportId, patientName, etc }
+  createdAt DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([isRead])
+}
+
+// ============================================================================
+// JOBS (for async queue processing)
+// ============================================================================
+
+model Job {
+  id        String   @id @default(cuid())
+  reportId  String   // Reference to the report being processed
+  jobType   String   // "ocr" | "parse" | "notify"
+  status    String   @default("pending") // "pending" | "processing" | "completed" | "failed"
+  error     String?  // Error message if failed
+  retries   Int      @default(0)
+  maxRetries Int     @default(3)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([reportId])
+  @@index([status])
+  @@index([jobType])
+}
