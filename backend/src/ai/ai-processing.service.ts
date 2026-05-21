@@ -123,6 +123,7 @@ export class AiProcessingService {
 
         const report = await this.prisma.report.findUnique({
           where: { id: job.reportId },
+          include: { patient: true },
         });
         if (report) {
           await this.prisma.report.update({
