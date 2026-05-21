@@ -38,10 +38,14 @@ COPY backend/package*.json ./
 # Install production dependencies only
 RUN npm install --production --legacy-peer-deps
 
+# Copy prisma schema
+COPY backend/prisma ./prisma
+
+# Regenerate Prisma client for runtime
+RUN npx prisma generate
+
 # Copy built application from builder stage
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma /app/node_modules/.prisma
 
 # Expose port
 EXPOSE 3000
