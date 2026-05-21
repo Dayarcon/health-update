@@ -3,16 +3,16 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files (from backend directory)
-COPY package*.json ./
+# Copy backend package files
+COPY backend/package*.json ./
 
 # Install dependencies
 RUN npm install --legacy-peer-deps
 
-# Copy source code
-COPY src ./src
-COPY tsconfig.json nest-cli.json ./
-COPY prisma ./prisma
+# Copy backend source code
+COPY backend/src ./src
+COPY backend/tsconfig.json backend/nest-cli.json ./
+COPY backend/prisma ./prisma
 
 # Build the application
 RUN npm run build
@@ -23,7 +23,7 @@ FROM node:20-alpine
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
+COPY backend/package*.json ./
 
 # Install production dependencies only
 RUN npm install --production --legacy-peer-deps

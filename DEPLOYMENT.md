@@ -112,17 +112,20 @@ git commit -m "chore: prepare for production deployment"
 git push origin main
 ```
 
-### 3.2 Create Render Service
+### 3.2 Create Render Service (Using Docker)
 1. Go to [render.com](https://render.com)
 2. Sign up → Connect GitHub account
 3. Click "New +" → "Web Service"
 4. Select your GitHub repo (health-report)
 5. Configure:
    - **Name:** medguardian-backend
-   - **Environment:** Node
-   - **Build Command:** `npm install --legacy-peer-deps && npm run build`
-   - **Start Command:** `npm start`
+   - **Environment:** Docker
+   - **Dockerfile Path:** `backend/Dockerfile`
+   - **Build Command:** (leave empty - Docker handles it)
+   - **Start Command:** (leave empty - Dockerfile CMD is used)
    - **Plan:** Free (or Starter for production)
+
+**Note:** If Render doesn't auto-detect the Dockerfile, you can also use the `render.yaml` file in the repo root for Infrastructure as Code deployment.
 
 ### 3.3 Add Environment Variables
 In Render dashboard, go to **Environment** and add:
