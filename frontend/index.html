@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MedGuardian - Dual Role</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/axios@1.6.5/dist/axios.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; }
+    html, body, #root { height: 100%; width: 100%; }
+    .app-container { height: 100vh; display: flex; flex-direction: column; }
+    .screen { flex: 1; display: flex; flex-direction: column; }
+    .header {
+      background: #16a34a;
+      color: white;
+      padding: 16px;
+      padding-top: 50px;
+    }
+    .header-title { font-size: 28px; font-weight: bold; }
+    .header-subtitle { font-size: 12px; opacity: 0.8; margin-top: 4px; }
+    .header-role { font-size: 11px; background: rgba(255,255,255,0.2); padding: 4px 8px; border-radius: 4px; display: inline-block; margin-top: 8px; }
+    .content { flex: 1; overflow-y: auto; padding: 16px; }
+    .role-selector {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      padding: 20px;
+    }
+    .role-card {
+      background: white;
+      border: 2px solid #ddd;
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .role-card:hover { border-color: #16a34a; background: #f9f9f9; }
+    .role-card.selected { border-color: #16a34a; background: #f0fdf4; }
+    .role-icon { font-size: 48px; margin-bottom: 12px; }
+    .role-title { font-size: 18px; font-weight: bold; margin-bottom: 8px; }
+    .role-desc { font-size: 12px; color: #666; }
+    .card {
+      background: white;
+      padding: 24px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .card-title { font-size: 24px; font-weight: bold; text-align: center; margin-bottom: 20px; }
+    input {
+      width: 100%;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+      font-size: 16px;
+    }
+    button {
+      width: 100%;
+      background: #16a34a;
+      color: white;
+      border: none;
+      padding: 14px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+    button:hover { background: #15803d; }
+    button:disabled { opacity: 0.6; }
+    .secondary-btn {
+      background: white;
+      color: #16a34a;
+      border: 2px solid #16a34a;
+      margin-top: 12px;
+    }
+    .secondary-btn:hover { background: #f0fdf4; }
+    .message {
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    .message.success { background: #d4edda; color: #155724; }
+    .message.error { background: #f8d7da; color: #721c24; }
+    .toggle-link { color: #0066cc; text-align: center; margin-top: 8px; cursor: pointer; }
+    .logout-btn {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      margin-left: auto;
+    }
+    .header-top { display: flex; justify-content: space-between; align-items: flex-start; }
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .stat-number { font-size: 28px; font-weight: bold; color: #16a34a; }
+    .stat-label { font-size: 12px; color: #666; margin-top: 4px; }
+    .menu-item {
+      background: white;
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      display: flex;
+      gap: 12px;
+      cursor: pointer;
+      border: 1px solid #eee;
+    }
+    .menu-icon { font-size: 32px; }
+    .menu-content { flex: 1; text-align: left; }
+    .menu-title { font-weight: 600; }
+    .menu-desc { font-size: 12px; color: #999; margin-top: 2px; }
+    .patient-item, .caregiver-item {
+      background: white;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      border-left: 4px solid #16a34a;
+    }
+    .item-name { font-weight: 600; }
+    .item-detail { font-size: 12px; color: #999; margin-top: 2px; }
+    .status-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-left: 8px;
+    }
+    .status-active { background: #d4edda; color: #155724; }
+    .status-pending { background: #fff3cd; color: #997404; }
+    .tab-bar {
+      display: flex;
+      border-top: 1px solid #ddd;
+      background: white;
+      gap: 0;
+    }
+    .tab-btn {
+      flex: 1;
+      background: white;
+      border: none;
+      padding: 12px;
+      text-align: center;
+      font-size: 24px;
+      cursor: pointer;
+      border-top: 2px solid transparent;
+    }
+    .tab-btn.active { border-top-color: #16a34a; background: #f9f9f9; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const API_URL = 'https://medguardian-backend-5wi0.onrender.com';
+
+    // ==================== ROLE SELECTION ====================
+    function RoleSelector({ onSelectRole }) {
+      return (
+        <div className="screen">
+          <div className="header">
+            <div>
+              <div className="header-title">🏥 MedGuardian</div>
+              <div className="header-subtitle">Healthcare Made Simple</div>
+            </div>
+          </div>
+          <div className="content">
+            <div style={{padding: '20px 0'}}>
+              <h2 style={{textAlign: 'center', marginBottom: '30px'}}>Choose Your Role</h2>
+              <div className="role-selector">
+                <div className="role-card" onClick={() => onSelectRole('patient')}>
+                  <div className="role-icon">🏥</div>
+                  <div className="role-title">Patient</div>
+                  <div className="role-desc">Upload & share your medical reports</div>
+                </div>
+                <div className="role-card" onClick={() => onSelectRole('caregiver')}>
+                  <div className="role-icon">❤️</div>
+                  <div className="role-title">Caregiver</div>
+                  <div className="role-desc">Monitor & support your patients</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ==================== LOGIN SCREEN ====================
+    function LoginScreen({ role, onLogin, onBackToRoleSelector }) {
+      const [isLogin, setIsLogin] = useState(true);
+      const [email, setEmail] = useState('test@example.com');
+      const [password, setPassword] = useState('SecurePass123!');
+      const [name, setName] = useState(role === 'patient' ? 'John Patient' : 'Jane Caregiver');
+      const [loading, setLoading] = useState(false);
+      const [message, setMessage] = useState('');
+
+      const handleAuth = async () => {
+        try {
+          setLoading(true);
+          const endpoint = isLogin ? '/auth/login' : '/auth/register';
+          const payload = isLogin ? { email, password } : { email, password, name };
+
+          const response = await axios.post(`${API_URL}${endpoint}`, payload);
+          if (response.data.success) {
+            const { user, accessToken, refreshToken } = response.data.data;
+            localStorage.setItem('token', accessToken);
+            localStorage.setItem('refresh_token', refreshToken);
+            localStorage.setItem('user', JSON.stringify(user));
+            localStorage.setItem('role', role);
+            onLogin(user, accessToken, role);
+          }
+        } catch (error) {
+          setMessage(`❌ ${error.response?.data?.error?.message || error.message}`);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      return (
+        <div className="screen">
+          <div className="header">
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
+              <div>
+                <div className="header-title">🏥 MedGuardian</div>
+                <div className="header-subtitle">Medical Report Analyzer</div>
+              </div>
+            </div>
+            <div className="header-role">
+              {role === 'patient' ? '🏥 Patient' : '❤️ Caregiver'}
+            </div>
+          </div>
+          <div className="content">
+            <div className="card">
+              <div className="card-title">{isLogin ? '🔐 Login' : '📝 Register'}</div>
+
+              {message && <div className={`message ${message.includes('❌') ? 'error' : 'success'}`}>{message}</div>}
+
+              <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
+              {!isLogin && <input type="text" placeholder="Full Name" value={name} onChange={(e) => setName(e.target.value)} />}
+
+              <button onClick={handleAuth} disabled={loading}>{loading ? '⏳' : (isLogin ? 'Login' : 'Register')}</button>
+              <button className="secondary-btn" onClick={() => setIsLogin(!isLogin)}>
+                {isLogin ? "Don't have account? Register" : 'Already have account? Login'}
+              </button>
+              <button className="secondary-btn" onClick={onBackToRoleSelector}>← Back to Role Selection</button>
+            </div>
+
+            <div className="card">
+              <strong>Demo Credentials:</strong>
+              <div style={{marginTop: '12px', fontSize: '13px', color: '#666'}}>
+                <p>Email: test@example.com</p>
+                <p>Password: SecurePass123!</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ==================== PATIENT DASHBOARD ====================
+    function PatientDashboard({ user, onLogout }) {
+      const [tab, setTab] = useState('home');
+      const [patients] = useState([
+        { id: 1, name: 'Myself', age: 45, reports: 5 }
+      ]);
+      const [reports, setReports] = useState([]);
+      const [caregivers, setCaregivers] = useState([
+        { id: 1, name: 'Sarah (Daughter)', relationship: 'Child', status: 'active' }
+      ]);
+      const [uploadFile, setUploadFile] = useState(null);
+      const [reportType, setReportType] = useState('prescription');
+      const [uploading, setUploading] = useState(false);
+      const [uploadMessage, setUploadMessage] = useState(null);
+
+      useEffect(() => {
+        if (tab === 'reports') {
+          loadReports();
+        }
+      }, [tab]);
+
+      const loadReports = async () => {
+        try {
+          const token = localStorage.getItem('token');
+          const patientId = localStorage.getItem('patientId') || user?.id;
+          const response = await axios.get(`${API_URL}/reports/patients/${patientId}`, { headers: { Authorization: `Bearer ${token}` } });
+          setReports(response.data.data || []);
+        } catch (error) {
+          console.log('Failed to load reports');
+        }
+      };
+
+      const handleFileSelect = (e) => {
+        const file = e.target.files?.[0];
+        if (file) {
+          setUploadFile(file);
+          setUploadMessage(null);
+        }
+      };
+
+      const handleUpload = async () => {
+        if (!uploadFile) {
+          setUploadMessage({ type: 'error', text: 'Please select a file' });
+          return;
+        }
+
+        setUploading(true);
+        try {
+          const token = localStorage.getItem('token');
+          const patientId = localStorage.getItem('patientId') || user?.id;
+
+          const formData = new FormData();
+          formData.append('file', uploadFile);
+          formData.append('patientId', patientId);
+          formData.append('reportType', reportType);
+
+          const response = await axios.post(`${API_URL}/reports`, formData, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'multipart/form-data',
+            },
+          });
+
+          setUploadMessage({ type: 'success', text: 'Report uploaded successfully! AI analysis in progress...' });
+          setUploadFile(null);
+          setReportType('prescription');
+
+          // Reload reports after 2 seconds
+          setTimeout(() => {
+            loadReports();
+          }, 2000);
+        } catch (error) {
+          const errorMsg = error.response?.data?.error?.message || 'Failed to upload report';
+          setUploadMessage({ type: 'error', text: errorMsg });
+        } finally {
+          setUploading(false);
+        }
+      };
+
+      return (
+        <div className="app-container">
+          {/* HEADER */}
+          <div className="header">
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
+              <div>
+                <div className="header-title">🏥 {user?.name}</div>
+                <div className="header-subtitle">Patient • {user?.email}</div>
+              </div>
+              <button className="logout-btn" onClick={onLogout}>Logout</button>
+            </div>
+          </div>
+
+          {/* CONTENT */}
+          <div className="content">
+            {tab === 'home' && (
+              <>
+                <div className="stats">
+                  <div className="stat-card">
+                    <div className="stat-number">{reports.length}</div>
+                    <div className="stat-label">Reports Uploaded</div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-number">{caregivers.length}</div>
+                    <div className="stat-label">Caregivers</div>
+                  </div>
+                </div>
+
+                <div className="menu-item" onClick={() => setTab('reports')}>
+                  <div className="menu-icon">📄</div>
+                  <div className="menu-content">
+                    <div className="menu-title">My Medical Reports</div>
+                    <div className="menu-desc">Upload & view AI analysis</div>
+                  </div>
+                </div>
+
+                <div className="menu-item" onClick={() => setTab('caregivers')}>
+                  <div className="menu-icon">❤️</div>
+                  <div className="menu-content">
+                    <div className="menu-title">My Caregivers</div>
+                    <div className="menu-desc">Manage who can see your data</div>
+                  </div>
+                </div>
+
+                <div className="menu-item">
+                  <div className="menu-icon">📍</div>
+                  <div className="menu-content">
+                    <div className="menu-title">Location Sharing</div>
+                    <div className="menu-desc">Share location with caregivers</div>
+                  </div>
+                </div>
+
+                <div className="menu-item">
+                  <div className="menu-icon">⚙️</div>
+                  <div className="menu-content">
+                    <div className="menu-title">Settings</div>
+                    <div className="menu-desc">Privacy & notification settings</div>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {tab === 'reports' && (
+              <>
+                <h2 style={{marginBottom: '16px'}}>📄 My Medical Reports</h2>
+
+                {/* Upload Form */}
+                <div className="card">
+                  <h3 style={{marginBottom: '16px'}}>Upload New Report</h3>
+                  {uploadMessage && (
+                    <div className={`message ${uploadMessage.type}`} style={{marginBottom: '16px'}}>
+                      {uploadMessage.text}
+                    </div>
+                  )}
+                  <div style={{marginBottom: '12px'}}>
+                    <label style={{display: 'block', marginBottom: '8px', fontWeight: '500'}}>Report Type</label>
+                    <select
+                      value={reportType}
+                      onChange={(e) => setReportType(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        border: '1px solid #ddd',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        marginBottom: '12px'
+                      }}
+                    >
+                      <option value="prescription">Prescription</option>
+                      <option value="lab_report">Lab Report</option>
+                      <option value="eeg">EEG</option>
+                      <option value="xray">X-Ray</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div style={{marginBottom: '12px'}}>
+                    <label style={{display: 'block', marginBottom: '8px', fontWeight: '500'}}>Select File</label>
+                    <input
+                      type="file"
+                      accept=".jpg,.jpeg,.png,.pdf"
+                      onChange={handleFileSelect}
+                      style={{marginBottom: '8px'}}
+                    />
+                    {uploadFile && (
+                      <p style={{fontSize: '12px', color: '#666', marginBottom: '12px'}}>
+                        ✓ {uploadFile.name} ({(uploadFile.size / 1024 / 1024).toFixed(2)}MB)
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    onClick={handleUpload}
+                    disabled={uploading || !uploadFile}
+                    style={{opacity: uploading || !uploadFile ? 0.6 : 1}}
+                  >
+                    {uploading ? '⏳ Uploading...' : '📤 Upload Report'}
+                  </button>
+                </div>
+
+                {/* Reports List */}
+                <h3 style={{marginTop: '20px', marginBottom: '12px'}}>Your Reports</h3>
+                {reports.length === 0 ? (
+                  <div style={{background: '#f0f0f0', padding: '40px', borderRadius: '8px', marginTop: '20px', textAlign: 'center'}}>
+                    <p style={{color: '#999'}}>No reports yet. Upload your first medical report above.</p>
+                  </div>
+                ) : (
+                  reports.map((r) => (
+                    <div key={r.id} className="patient-item" style={{marginBottom: '12px'}}>
+                      <div style={{flex: 1}}>
+                        <div className="item-name">{r.fileName}</div>
+                        <div className="item-detail">Type: {r.reportType} • Status: {r.processingStatus}</div>
+                        {r.riskLevel && <div className="item-detail">Risk Level: {r.riskLevel}</div>}
+                      </div>
+                      <div className={`status-badge status-${r.processingStatus === 'completed' ? 'active' : 'pending'}`}>
+                        {r.processingStatus}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </>
+            )}
+
+            {tab === 'caregivers' && (
+              <>
+                <h2 style={{marginBottom: '16px'}}>❤️ My Caregivers</h2>
+                <button onClick={() => alert('Share invitation code with caregiver')}>+ Invite New Caregiver</button>
+                {caregivers.map((c) => (
+                  <div key={c.id} className="patient-item">
+                    <div style={{flex: 1}}>
+                      <div className="item-name">{c.name}</div>
+                      <div className="item-detail">{c.relationship}</div>
+                    </div>
+                    <div className={`status-badge status-${c.status}`}>{c.status}</div>
+                  </div>
+                ))}
+              </>
+            )}
+
+            {tab === 'location' && (
+              <>
+                <h2 style={{marginBottom: '16px'}}>📍 Location Sharing</h2>
+                <div className="card">
+                  <p style={{marginBottom: '16px'}}>Allow caregivers to track your real-time location for safety.</p>
+                  <button>📍 Enable Location Sharing</button>
+                  <button className="secondary-btn">🆘 Send Emergency SOS</button>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* TAB BAR */}
+          <div className="tab-bar">
+            <button className={`tab-btn ${tab === 'home' ? 'active' : ''}`} onClick={() => setTab('home')}>🏠</button>
+            <button className={`tab-btn ${tab === 'reports' ? 'active' : ''}`} onClick={() => setTab('reports')}>📄</button>
+            <button className={`tab-btn ${tab === 'caregivers' ? 'active' : ''}`} onClick={() => setTab('caregivers')}>❤️</button>
+            <button className={`tab-btn ${tab === 'location' ? 'active' : ''}`} onClick={() => setTab('location')}>📍</button>
+          </div>
+        </div>
+      );
+    }
+
+    // ==================== CAREGIVER DASHBOARD ====================
+    function CaregiverDashboard({ user, onLogout }) {
+      const [tab, setTab] = useState('home');
+      const [patients] = useState([
+        { id: 1, name: 'John (Father)', age: 68, lastReport: '2 days ago', status: 'active' },
+        { id: 2, name: 'Mary (Mother)', age: 66, lastReport: '5 days ago', status: 'pending' }
+      ]);
+      const [alerts] = useState([
+        { id: 1, type: 'report', patient: 'John', message: 'New lab report uploaded', time: '2h ago' },
+        { id: 2, type: 'sos', patient: 'John', message: 'Emergency SOS received', time: '1d ago' }
+      ]);
+
+      return (
+        <div className="app-container">
+          {/* HEADER */}
+          <div className="header">
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
+              <div>
+                <div className="header-title">❤️ {user?.name}</div>
+                <div className="header-subtitle">Caregiver • {user?.email}</div>
+              </div>
+              <button className="logout-btn" onClick={onLogout}>Logout</button>
+            </div>
+          </div>
+
+          {/* CONTENT */}
+          <div className="content">
+            {tab === 'home' && (
+              <>
+                <div className="stats">
+                  <div className="stat-card">
+                    <div className="stat-number">{patients.length}</div>
+                    <div className="stat-label">My Patients</div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-number">{alerts.length}</div>
+                    <div className="stat-label">Unread Alerts</div>
+                  </div>
+                </div>
+
+                <h3 style={{marginBottom: '12px', marginTop: '20px'}}>👥 My Patients</h3>
+                {patients.map((p) => (
+                  <div key={p.id} className="caregiver-item">
+                    <div style={{flex: 1}}>
+                      <div className="item-name">{p.name}</div>
+                      <div className="item-detail">Age {p.age} • Last report: {p.lastReport}</div>
+                    </div>
+                    <div className={`status-badge status-${p.status}`}>{p.status}</div>
+                  </div>
+                ))}
+
+                <button style={{marginTop: '20px'}}>+ Add Patient (via invite code)</button>
+              </>
+            )}
+
+            {tab === 'patients' && (
+              <>
+                <h2 style={{marginBottom: '16px'}}>👥 My Patients</h2>
+                {patients.map((p) => (
+                  <div key={p.id} className="caregiver-item">
+                    <div style={{flex: 1}}>
+                      <div className="item-name">{p.name}</div>
+                      <div className="item-detail">Age {p.age}</div>
+                      <div className="item-detail" style={{marginTop: '6px', color: '#16a34a'}}>Last report: {p.lastReport}</div>
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
+
+            {tab === 'alerts' && (
+              <>
+                <h2 style={{marginBottom: '16px'}}>🔔 Alerts & Notifications</h2>
+                {alerts.map((a) => (
+                  <div key={a.id} className="caregiver-item">
+                    <div>
+                      <div className="item-name">{a.type === 'report' ? '📄' : '🆘'} {a.patient}</div>
+                      <div className="item-detail">{a.message}</div>
+                      <div className="item-detail" style={{marginTop: '6px', color: '#999'}}>{a.time}</div>
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
+
+            {tab === 'location' && (
+              <>
+                <h2 style={{marginBottom: '16px'}}>📍 Patient Locations</h2>
+                <div className="card">
+                  <p style={{marginBottom: '16px', color: '#666'}}>Real-time location tracking for your patients.</p>
+                  <div style={{background: '#e8e8e8', height: '200px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px'}}>
+                    <span style={{color: '#666'}}>📍 Map View Coming Soon</span>
+                  </div>
+                  <button>View Location History</button>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* TAB BAR */}
+          <div className="tab-bar">
+            <button className={`tab-btn ${tab === 'home' ? 'active' : ''}`} onClick={() => setTab('home')}>🏠</button>
+            <button className={`tab-btn ${tab === 'patients' ? 'active' : ''}`} onClick={() => setTab('patients')}>👥</button>
+            <button className={`tab-btn ${tab === 'alerts' ? 'active' : ''}`} onClick={() => setTab('alerts')}>🔔</button>
+            <button className={`tab-btn ${tab === 'location' ? 'active' : ''}`} onClick={() => setTab('location')}>📍</button>
+          </div>
+        </div>
+      );
+    }
+
+    // ==================== MAIN APP ====================
+    function App() {
+      const [state, setState] = useState('role'); // 'role', 'login', 'app'
+      const [selectedRole, setSelectedRole] = useState(null);
+      const [user, setUser] = useState(null);
+
+      useEffect(() => {
+        const token = localStorage.getItem('token');
+        const userStr = localStorage.getItem('user');
+        const role = localStorage.getItem('role');
+        if (token && userStr && role) {
+          setUser(JSON.parse(userStr));
+          setSelectedRole(role);
+          setState('app');
+        }
+      }, []);
+
+      const handleSelectRole = (role) => {
+        setSelectedRole(role);
+        setState('login');
+      };
+
+      const handleLogin = (userData, token, role) => {
+        setUser(userData);
+        setSelectedRole(role);
+        setState('app');
+      };
+
+      const handleLogout = () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('role');
+        setUser(null);
+        setSelectedRole(null);
+        setState('role');
+      };
+
+      const handleBackToRoleSelector = () => {
+        setState('role');
+      };
+
+      if (state === 'role') {
+        return <RoleSelector onSelectRole={handleSelectRole} />;
+      }
+
+      if (state === 'login') {
+        return (
+          <LoginScreen
+            role={selectedRole}
+            onLogin={handleLogin}
+            onBackToRoleSelector={handleBackToRoleSelector}
+          />
+        );
+      }
+
+      if (state === 'app' && selectedRole === 'patient') {
+        return <PatientDashboard user={user} onLogout={handleLogout} />;
+      }
+
+      if (state === 'app' && selectedRole === 'caregiver') {
+        return <CaregiverDashboard user={user} onLogout={handleLogout} />;
+      }
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

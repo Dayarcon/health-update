@@ -21,16 +21,20 @@ model User {
   passwordHash  String?
   googleId      String?  @unique
   refreshToken  String?
+  role          String   @default("patient") // "patient" | "caregiver" | "doctor"
+  phoneNumber   String?
+  dateOfBirth   String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   // Relations
-  patients        Patient[]
-  notifications   Notification[]
-  caregivers      Caregiver[]
-  locationUpdates LocationUpdate[]
+  patients              Patient[]
+  notifications         Notification[]
+  caregivingRelations   PatientCaregiver[] @relation("CaregiverRelation")
+  locationUpdates       LocationUpdate[]
 
   @@index([email])
+  @@index([role])
 }
 
 // ============================================================================
@@ -44,12 +48,15 @@ model Patient {
   age       Int?
   gender    String?  // "male" | "female" | "other"
   relation  String?  // "self" | "parent" | "spouse" | "child" | "other"
+  emergencyContact String?
+  medicalHistory   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Relations
-  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  reports Report[]
+  user       User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reports    Report[]
+  caregivers PatientCaregiver[]    @relation("PatientCaregivers")
 
   @@index([userId])
 }
@@ -59,17 +66,20 @@ model Patient {
 // ============================================================================
 
 model Report {
-  id           String   @id @default(cuid())
-  patientId    String
-  reportType   String   // "prescription" | "eeg" | "lab" | "bill" | "discharge"
-  imageUrl     String   // URL in Supabase storage
-  fileName     String
-  rawOcrText   String?  // Raw text from Gemini Vision API
-  aiSummary    Json?    // Parsed JSON from Gemini LLM
-  riskLevel    String?  // "low" | "medium" | "high"
-  processingStatus String @default("pending") // "pending" | "processing" | "completed" | "failed"
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                String   @id @default(cuid())
+  patientId         String
+  reportType        String   // "prescription" | "eeg" | "lab" | "bill" | "discharge"
+  imageUrl          String   // URL in Supabase storage
+  fileName          String
+  rawOcrText        String?  // Raw text from Gemini Vision API
+  aiSummary         Json?    // Parsed JSON from Gemini LLM
+  riskLevel         String?  // "low" | "medium" | "high"
+  processingStatus  String   @default("pending") // "pending" | "processing" | "completed" | "failed"
+  visibility        String   @default("private") // "private" | "shared-with-caregivers" | "public"
+  fileSize          Int?     // In bytes
+  uploadedByUserId  String?  // Who uploaded (patient or caregiver)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   // Relations
   patient   Patient     @relation(fields: [patientId], references: [id], onDelete: Cascade)
@@ -79,6 +89,7 @@ model Report {
   @@index([patientId])
   @@index([createdAt])
   @@index([processingStatus])
+  @@index([visibility])
 }
 
 // ============================================================================
@@ -118,25 +129,33 @@ model Diagnosis {
 }
 
 // ============================================================================
-// CAREGIVERS (family members receiving notifications)
+// PATIENT-CAREGIVER RELATIONSHIPS (junction table)
 // ============================================================================
 
-model Caregiver {
-  id        String   @id @default(cuid())
-  userId    String
-  name      String
-  relation  String   // "parent" | "spouse" | "sibling" | "child" | "friend"
-  email     String?
-  expoToken String?
-  telegramId String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model PatientCaregiver {
+  id              String   @id @default(cuid())
+  patientId       String
+  caregiverId     String
+  relationship    String   // "spouse" | "child" | "parent" | "sibling" | "friend" | "professional"
+  accessLevel     String   @default("read-only") // "read-only" | "full"
+  canViewReports  Boolean  @default(true)
+  canViewLocation Boolean  @default(false)
+  canMessage      Boolean  @default(true)
+  canInviteOthers Boolean  @default(false)
+  invitationCode  String?  @unique
+  invitationToken String?
+  isAccepted      Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  patient   Patient @relation("PatientCaregivers", fields: [patientId], references: [id], onDelete: Cascade)
+  caregiver User    @relation("CaregiverRelation", fields: [caregiverId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, email])
-  @@index([userId])
+  @@unique([patientId, caregiverId])
+  @@index([patientId])
+  @@index([caregiverId])
+  @@index([invitationCode])
 }
 
 // ============================================================================
@@ -145,14 +164,18 @@ model Caregiver {
 
 model Notification {
   id        String   @id @default(cuid())
-  userId    String
+  userId    String   // Recipient (patient or caregiver)
+  senderId  String?  // Who sent it (optional)
   title     String
   message   String
-  type      String   // "report_uploaded" | "report_completed" | "report_failed"
+  type      String   // "report_uploaded" | "report_completed" | "caregiver_added" | "location_update" | "sos_alert"
   isRead    Boolean  @default(false)
   reportId  String?
-  metadata  Json?    // { patientName, riskLevel, etc }
+  patientId String?  // If from caregiver, which patient
+  channels  String   @default("email") // "push" | "email" | "sms" | "telegram"
+  metadata  Json?    // { patientName, riskLevel, caregiverName, etc }
   createdAt DateTime @default(now())
+  readAt    DateTime?
 
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -160,6 +183,7 @@ model Notification {
   @@index([userId])
   @@index([createdAt])
   @@index([isRead])
+  @@index([type])
 }
 
 // ============================================================================

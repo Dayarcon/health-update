@@ -2,57 +2,62 @@
   "expo": {
     "name": "MedGuardian",
     "slug": "medguardian",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTabletMode": true,
       "bundleIdentifier": "com.medguardian.app"
     },
     "android": {
+      "package": "com.medguardian.app",
+      "versionCode": 1,
+      "permissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.CAMERA",
+        "android.permission.INTERNET",
+        "android.permission.RECORD_AUDIO"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.medguardian.app"
+      "useNextNotificationsApi": true
     },
     "web": {
-      "bundler": "metro",
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow $(PRODUCT_NAME) to access your photos.",
-          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera."
-        }
-      ],
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera."
+          "photosPermission": "The app accesses your photos to upload medical reports.",
+          "cameraPermission": "The app accesses your camera."
         }
       ],
       [
         "expo-notifications",
         {
-          "icon": "./assets/notification-icon.png"
+          "icon": "./assets/notification-icon.png",
+          "color": "#16a34a"
         }
       ]
     ],
+    "scheme": "medguardian",
     "extra": {
       "eas": {
-        "projectId": "your-eas-project-id"
+        "projectId": "05296258-62c5-463e-84bf-7f563f9bf11b"
       }
     },
-    "scheme": "medguardian"
+    "owner": "freefworlds"
   }
 }

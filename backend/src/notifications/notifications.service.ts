@@ -3,8 +3,6 @@ import { PrismaService } from '@/common/prisma/prisma.service';
 import { ExpoService } from './providers/expo.service';
 import { ResendService } from './providers/resend.service';
 import { TelegramService } from './providers/telegram.service';
-import { CreateCaregiverDto } from './dto/create-caregiver.dto';
-import { UpdateCaregiverDto } from './dto/update-caregiver.dto';
 
 @Injectable()
 export class NotificationsService {
@@ -16,65 +14,6 @@ export class NotificationsService {
     private resendService: ResendService,
     private telegramService: TelegramService,
   ) {}
-
-  // CAREGIVER MANAGEMENT
-
-  async createCaregiver(userId: string, dto: CreateCaregiverDto) {
-    const caregiver = await this.prisma.caregiver.create({
-      data: {
-        userId,
-        name: dto.name,
-        relation: dto.relation,
-        email: dto.email,
-        expoToken: dto.expoToken,
-        telegramId: dto.telegramId,
-      },
-    });
-
-    return caregiver;
-  }
-
-  async listCaregivers(userId: string) {
-    return this.prisma.caregiver.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-    });
-  }
-
-  async getCaregiver(userId: string, caregiverId: string) {
-    const caregiver = await this.prisma.caregiver.findFirst({
-      where: { id: caregiverId, userId },
-    });
-
-    if (!caregiver) {
-      throw new NotFoundException('Caregiver not found');
-    }
-
-    return caregiver;
-  }
-
-  async updateCaregiver(userId: string, caregiverId: string, dto: UpdateCaregiverDto) {
-    await this.getCaregiver(userId, caregiverId);
-
-    return this.prisma.caregiver.update({
-      where: { id: caregiverId },
-      data: {
-        name: dto.name,
-        relation: dto.relation,
-        email: dto.email,
-        expoToken: dto.expoToken,
-        telegramId: dto.telegramId,
-      },
-    });
-  }
-
-  async removeCaregiver(userId: string, caregiverId: string) {
-    await this.getCaregiver(userId, caregiverId);
-
-    return this.prisma.caregiver.delete({
-      where: { id: caregiverId },
-    });
-  }
 
   // NOTIFICATION MANAGEMENT
 
@@ -112,15 +51,20 @@ export class NotificationsService {
 
       if (!report) return;
 
-      const userId = report.patient.userId;
-      const caregivers = await this.listCaregivers(userId);
+      const patientId = report.patientId;
+
+      // Get all caregivers for this patient
+      const caregiverRelations = await this.prisma.patientCaregiver.findMany({
+        where: { patientId, isAccepted: true },
+        include: { caregiver: true },
+      });
 
       const title = 'Report Uploaded';
       const body = `${patientName} uploaded a new ${report.reportType} report`;
 
       await this.prisma.notification.create({
         data: {
-          userId,
+          userId: report.patient.userId,
           title,
           message: body,
           type: 'report_uploaded',
@@ -129,7 +73,7 @@ export class NotificationsService {
         },
       });
 
-      await this.sendToAllCaregivers(caregivers, title, body, patientName, report.reportType);
+      await this.sendToCaregivers(caregiverRelations, title, body, patientName, report.reportType);
     } catch (error: any) {
       this.logger.error(`Error notifying report upload: ${error?.message}`);
     }
@@ -148,8 +92,12 @@ export class NotificationsService {
 
       if (!report) return;
 
-      const userId = report.patient.userId;
-      const caregivers = await this.listCaregivers(userId);
+      const patientId = report.patientId;
+      const caregiverRelations = await this.prisma.patientCaregiver.findMany({
+        where: { patientId, isAccepted: true },
+        include: { caregiver: true },
+      });
+
       const riskLevel = extraction.riskLevel || 'low';
 
       const title = 'Report Analyzed';
@@ -157,7 +105,7 @@ export class NotificationsService {
 
       await this.prisma.notification.create({
         data: {
-          userId,
+          userId: report.patient.userId,
           title,
           message: body,
           type: 'report_completed',
@@ -172,8 +120,8 @@ export class NotificationsService {
         },
       });
 
-      await this.sendToAllCaregivers(
-        caregivers,
+      await this.sendToCaregivers(
+        caregiverRelations,
         title,
         body,
         patientName,
@@ -194,15 +142,18 @@ export class NotificationsService {
 
       if (!report) return;
 
-      const userId = report.patient.userId;
-      const caregivers = await this.listCaregivers(userId);
+      const patientId = report.patientId;
+      const caregiverRelations = await this.prisma.patientCaregiver.findMany({
+        where: { patientId, isAccepted: true },
+        include: { caregiver: true },
+      });
 
       const title = 'Report Analysis Failed';
       const body = `${patientName}'s ${report.reportType} report analysis failed. Please try uploading again.`;
 
       await this.prisma.notification.create({
         data: {
-          userId,
+          userId: report.patient.userId,
           title,
           message: body,
           type: 'report_failed',
@@ -211,7 +162,7 @@ export class NotificationsService {
         },
       });
 
-      await this.sendToAllCaregivers(caregivers, title, body, patientName, report.reportType);
+      await this.sendToCaregivers(caregiverRelations, title, body, patientName, report.reportType);
     } catch (error: any) {
       this.logger.error(`Error notifying report failure: ${error?.message}`);
     }
@@ -227,7 +178,20 @@ export class NotificationsService {
         return;
       }
 
-      const caregivers = await this.listCaregivers(userId);
+      // Get patient record to find caregivers
+      const patient = await this.prisma.patient.findFirst({
+        where: { userId },
+      });
+
+      if (!patient) {
+        return;
+      }
+
+      const caregiverRelations = await this.prisma.patientCaregiver.findMany({
+        where: { patientId: patient.id, isAccepted: true },
+        include: { caregiver: true },
+      });
+
       const mapsLink = `https://maps.google.com/?q=${latitude},${longitude}`;
       const title = 'EMERGENCY ALERT';
       const body = `${user.name || 'Patient'} needs immediate help! Location: ${mapsLink}${battery !== undefined ? ` | Battery: ${battery}%` : ''}`;
@@ -247,7 +211,7 @@ export class NotificationsService {
         },
       });
 
-      await this.sendSosToAllCaregivers(caregivers, title, body, mapsLink, user.name ?? undefined, battery);
+      await this.sendSosToAllCaregivers(caregiverRelations, title, body, mapsLink, user.name ?? undefined, battery);
     } catch (error: any) {
       this.logger.error(`Error notifying SOS alert: ${error?.message}`);
     }
@@ -255,15 +219,17 @@ export class NotificationsService {
 
   // INTERNAL HELPERS
 
-  private async sendToAllCaregivers(
-    caregivers: any[],
+  private async sendToCaregivers(
+    caregiverRelations: any[],
     title: string,
     body: string,
     patientName?: string,
     reportType?: string,
     riskLevel?: string,
   ): Promise<void> {
-    for (const caregiver of caregivers) {
+    for (const relation of caregiverRelations) {
+      const caregiver = relation.caregiver;
+
       if (caregiver.email) {
         await this.resendService.sendEmail(
           caregiver.email,
@@ -272,11 +238,15 @@ export class NotificationsService {
           patientName,
           reportType,
           riskLevel,
-        );
+        ).catch((error) => {
+          this.logger.error(`Failed to send email: ${error?.message}`);
+        });
       }
 
       if (caregiver.expoToken) {
-        await this.expoService.sendPushNotification(caregiver.expoToken, title, body);
+        await this.expoService.sendPushNotification(caregiver.expoToken, title, body).catch((error) => {
+          this.logger.error(`Failed to send push: ${error?.message}`);
+        });
       }
 
       if (caregiver.telegramId) {
@@ -287,20 +257,24 @@ export class NotificationsService {
           patientName,
           reportType,
           riskLevel,
-        );
+        ).catch((error) => {
+          this.logger.error(`Failed to send Telegram: ${error?.message}`);
+        });
       }
     }
   }
 
   private async sendSosToAllCaregivers(
-    caregivers: any[],
+    caregiverRelations: any[],
     title: string,
     body: string,
     mapsLink: string,
     patientName?: string,
     battery?: number,
   ): Promise<void> {
-    for (const caregiver of caregivers) {
+    for (const relation of caregiverRelations) {
+      const caregiver = relation.caregiver;
+
       if (caregiver.email) {
         await this.resendService.sendSosEmail(
           caregiver.email,
@@ -332,6 +306,91 @@ export class NotificationsService {
           this.logger.error(`Failed to send SOS Telegram: ${error?.message}`);
         });
       }
+    }
+  }
+
+  // CAREGIVER-SPECIFIC NOTIFICATIONS
+
+  async notifyNewInvitation(caregiverId: string, patientName: string, invitationCode: string): Promise<void> {
+    try {
+      const caregiver = await this.prisma.user.findUnique({
+        where: { id: caregiverId },
+      });
+
+      if (!caregiver) return;
+
+      const title = 'New Caregiver Invitation';
+      const body = `You've been invited to care for ${patientName}. Use code: ${invitationCode}`;
+
+      await this.prisma.notification.create({
+        data: {
+          userId: caregiverId,
+          title,
+          message: body,
+          type: 'caregiver_added',
+          metadata: {
+            patientName,
+            invitationCode,
+          },
+        },
+      });
+
+      if (caregiver.email) {
+        await this.resendService.sendEmail(
+          caregiver.email,
+          title,
+          body,
+          patientName,
+        ).catch((error) => {
+          this.logger.error(`Failed to send invitation email: ${error?.message}`);
+        });
+      }
+    } catch (error: any) {
+      this.logger.error(`Error notifying new invitation: ${error?.message}`);
+    }
+  }
+
+  async notifyInvitationAccepted(patientUserId: string, caregiverName: string, patientName: string): Promise<void> {
+    try {
+      const title = 'Caregiver Accepted';
+      const body = `${caregiverName} has accepted your invitation to care for ${patientName}`;
+
+      await this.prisma.notification.create({
+        data: {
+          userId: patientUserId,
+          title,
+          message: body,
+          type: 'caregiver_added',
+          metadata: {
+            caregiverName,
+            patientName,
+          },
+        },
+      });
+    } catch (error: any) {
+      this.logger.error(`Error notifying invitation accepted: ${error?.message}`);
+    }
+  }
+
+  async notifyPatientReportViewed(patientUserId: string, caregiverName: string, reportType: string): Promise<void> {
+    try {
+      const title = 'Report Viewed';
+      const body = `${caregiverName} viewed your ${reportType} report`;
+
+      await this.prisma.notification.create({
+        data: {
+          userId: patientUserId,
+          title,
+          message: body,
+          type: 'report_viewed',
+          metadata: {
+            caregiverName,
+            reportType,
+          },
+        },
+      });
+    } catch (error: any) {
+      this.logger.error(`Error notifying report viewed: ${error?.message}`);
     }
   }
 }

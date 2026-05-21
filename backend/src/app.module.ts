@@ -6,8 +6,8 @@ import { PatientsModule } from './patients/patients.module';
 import { ReportsModule } from './reports/reports.module';
 import { AiModule } from './ai/ai.module';
 import { NotificationsModule } from './notifications/notifications.module';
-import { LocationModule } from './location/location.module';
 import { QueueModule } from './queue/queue.module';
+import { CaregiversModule } from './caregivers/caregivers.module';
 
 @Module({
   imports: [
@@ -21,8 +21,8 @@ import { QueueModule } from './queue/queue.module';
     ReportsModule,
     AiModule,
     NotificationsModule,
-    LocationModule,
     QueueModule,
+    CaregiversModule,
   ],
 })
 export class AppModule {}
