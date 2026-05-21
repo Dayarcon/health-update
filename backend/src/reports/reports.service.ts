@@ -2,6 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { PatientsService } from '@/patients/patients.service';
 import { StorageService } from '@/storage/storage.service';
+import { NotificationsService } from '@/notifications/notifications.service';
 import { ReportNotFoundException } from '@/common/exceptions';
 import { UploadReportDto } from './dto';
 
@@ -30,6 +31,7 @@ export class ReportsService {
     private prisma: PrismaService,
     private patientsService: PatientsService,
     private storageService: StorageService,
+    private notificationsService: NotificationsService,
   ) {}
 
   async uploadReport(
@@ -78,6 +80,12 @@ export class ReportsService {
         jobType: 'ocr',
         status: 'pending',
       },
+    });
+
+    // Notify caregivers of report upload
+    const patient = await this.patientsService.findOne(userId, dto.patientId);
+    this.notificationsService.notifyReportUploaded(report.id, patient.name).catch(() => {
+      // Swallow notification errors - don't block the upload
     });
 
     return this.mapToEntity(report);

@@ -3,11 +3,12 @@ import { PrismaModule } from '@/common/prisma/prisma.module';
 import { AuthModule } from '@/auth/auth.module';
 import { PatientsModule } from '@/patients/patients.module';
 import { StorageModule } from '@/storage/storage.module';
+import { NotificationsModule } from '@/notifications/notifications.module';
 import { ReportsService } from './reports.service';
 import { ReportsController } from './reports.controller';
 
 @Module({
-  imports: [PrismaModule, AuthModule, PatientsModule, StorageModule],
+  imports: [PrismaModule, AuthModule, PatientsModule, StorageModule, NotificationsModule],
   providers: [ReportsService],
   controllers: [ReportsController],
   exports: [ReportsService],

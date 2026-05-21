@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { GeminiService } from './gemini.service';
+import { NotificationsService } from '@/notifications/notifications.service';
 
 @Injectable()
 export class AiProcessingService {
@@ -10,6 +11,7 @@ export class AiProcessingService {
   constructor(
     private prisma: PrismaService,
     private geminiService: GeminiService,
+    private notificationsService: NotificationsService,
   ) {}
 
   async processJob(job: any): Promise<void> {
@@ -93,6 +95,13 @@ export class AiProcessingService {
         data: { status: 'completed' },
       });
 
+      // Notify caregivers of report completion
+      this.notificationsService
+        .notifyReportCompleted(report.id, report.patient?.name || 'Unknown', extraction)
+        .catch(() => {
+          // Swallow notification errors
+        });
+
       this.logger.log(`✓ Job ${job.id} completed successfully`);
     } catch (error: any) {
       this.logger.error(`Job ${job.id} failed: ${error?.message}`);
@@ -119,6 +128,13 @@ export class AiProcessingService {
             where: { id: report.id },
             data: { processingStatus: 'failed' },
           });
+
+          // Notify caregivers of report failure
+          this.notificationsService
+            .notifyReportFailed(report.id, report.patient?.name || 'Unknown', error?.message)
+            .catch(() => {
+              // Swallow notification errors
+            });
         }
 
         this.logger.error(

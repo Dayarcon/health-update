@@ -25,8 +25,10 @@ model User {
   updatedAt     DateTime @updatedAt
 
   // Relations
-  patients      Patient[]
-  notifications Notification[]
+  patients        Patient[]
+  notifications   Notification[]
+  caregivers      Caregiver[]
+  locationUpdates LocationUpdate[]
 
   @@index([email])
 }
@@ -116,6 +118,28 @@ model Diagnosis {
 }
 
 // ============================================================================
+// CAREGIVERS (family members receiving notifications)
+// ============================================================================
+
+model Caregiver {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  relation  String   // "parent" | "spouse" | "sibling" | "child" | "friend"
+  email     String?
+  expoToken String?
+  telegramId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, email])
+  @@index([userId])
+}
+
+// ============================================================================
 // NOTIFICATIONS (alerts sent to caregivers)
 // ============================================================================
 
@@ -124,9 +148,10 @@ model Notification {
   userId    String
   title     String
   message   String
-  type      String   // "push" | "email" | "telegram" | "sms"
+  type      String   // "report_uploaded" | "report_completed" | "report_failed"
   isRead    Boolean  @default(false)
-  metadata  Json?    // { reportId, patientName, etc }
+  reportId  String?
+  metadata  Json?    // { patientName, riskLevel, etc }
   createdAt DateTime @default(now())
 
   // Relations
@@ -155,4 +180,29 @@ model Job {
   @@index([reportId])
   @@index([status])
   @@index([jobType])
+}
+
+// ============================================================================
+// LOCATION UPDATES (real-time and historical tracking)
+// ============================================================================
+
+model LocationUpdate {
+  id          String   @id @default(cuid())
+  userId      String
+  latitude    Float
+  longitude   Float
+  accuracy    Float?
+  altitude    Float?
+  heading     Float?
+  speed       Float?
+  battery     Int?
+  isEmergency Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([userId, isEmergency])
 }
