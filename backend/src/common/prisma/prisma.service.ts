@@ -7,7 +7,13 @@ export class PrismaService
   implements OnModuleInit, OnModuleDestroy
 {
   async onModuleInit() {
-    await this.$connect();
+    try {
+      await this.$connect();
+    } catch (error) {
+      // Log connection error but don't block app startup
+      // Prisma will retry on first query attempt
+      console.error('Database connection failed at startup:', error);
+    }
   }
 
   async onModuleDestroy() {
