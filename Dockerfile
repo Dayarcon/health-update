@@ -35,6 +35,7 @@ RUN npm install --production --legacy-peer-deps
 # Copy built application from builder stage
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/node_modules/.prisma /app/node_modules/.prisma
 
 # Expose port
 EXPOSE 3000
