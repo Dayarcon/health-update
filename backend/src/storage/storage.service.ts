@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import ws from 'ws';
 
 @Injectable()
 export class StorageService {
@@ -14,7 +15,9 @@ export class StorageService {
       throw new Error('Supabase credentials not configured');
     }
 
-    this.supabase = createClient(supabaseUrl, supabaseKey);
+    this.supabase = createClient(supabaseUrl, supabaseKey, {
+      realtime: { transport: ws },
+    });
   }
 
   async uploadFile(
