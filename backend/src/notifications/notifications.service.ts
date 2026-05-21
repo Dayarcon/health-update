@@ -247,7 +247,7 @@ export class NotificationsService {
         },
       });
 
-      await this.sendSosToAllCaregivers(caregivers, title, body, mapsLink, user.name, battery);
+      await this.sendSosToAllCaregivers(caregivers, title, body, mapsLink, user.name ?? undefined, battery);
     } catch (error: any) {
       this.logger.error(`Error notifying SOS alert: ${error?.message}`);
     }
