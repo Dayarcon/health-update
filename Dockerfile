@@ -4,8 +4,7 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Copy package files from backend directory
-COPY backend/package.json ./
-COPY backend/package-lock.json ./
+COPY backend/package*.json ./
 
 # Install dependencies
 RUN npm install --legacy-peer-deps
@@ -25,8 +24,7 @@ FROM node:20-alpine
 WORKDIR /app
 
 # Copy package files
-COPY backend/package.json ./
-COPY backend/package-lock.json ./
+COPY backend/package*.json ./
 
 # Install production dependencies only
 RUN npm install --production --legacy-peer-deps
