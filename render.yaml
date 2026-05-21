@@ -1,0 +1,47 @@
+services:
+  - type: web
+    name: medguardian-backend
+    runtime: docker
+    region: oregon
+    plan: free
+
+    # Docker settings
+    dockerfile: ./backend/Dockerfile
+    dockerfilePath: ./backend/Dockerfile
+
+    # Environment variables
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: DATABASE_URL
+        sync: false  # Must be set manually in dashboard
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: EXPO_ACCESS_TOKEN
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+
+    healthCheck:
+      path: /auth/me
+      expectedStatus: 401  # Expected 401 because no token is provided
+
+    # Scaling
+    numInstances: 1
+    maxNumInstances: 1
