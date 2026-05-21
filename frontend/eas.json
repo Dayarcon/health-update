@@ -13,13 +13,9 @@
       },
       "production": {
         "autoIncrement": true,
-        "node": "22.13.0",
-        "env": {
-          "EXPO_USE_FAST_RESOLVER": "true"
-        },
+        "node": "20.19.5",
         "android": {
-          "buildType": "apk",
-          "gradleCommand": ":app:assembleRelease"
+          "buildType": "apk"
         }
       }
     },
