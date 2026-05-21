@@ -15,6 +15,9 @@ COPY backend/tsconfig.json ./
 COPY backend/nest-cli.json ./
 COPY backend/prisma ./prisma
 
+# Generate Prisma client
+RUN npx prisma generate
+
 # Build the application
 RUN npm run build
 
